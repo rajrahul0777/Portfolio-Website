@@ -15,7 +15,11 @@ const CertificationSchema = new mongoose.Schema({
   },
   filePath: {
     type: String,
-    default: '', // stores the link/path of the uploaded file/image
+    default: '', // stores the path of the uploaded file
+  },
+  credentialUrl: {
+    type: String,
+    default: '', // stores external credential URL (Credly, IBM, Coursera, etc.)
   },
   order: {
     type: Number,
