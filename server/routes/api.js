@@ -24,6 +24,106 @@ const generateToken = (id) => {
 };
 
 /* =========================================================================
+   ONE-TIME PRODUCTION SEED ROUTE (secured by secret key)
+   Remove this route after seeding is done.
+   ========================================================================= */
+
+// @route   POST /api/seed-production
+// @desc    One-time seed endpoint — protected by SEED_SECRET env var
+router.post('/seed-production', async (req, res) => {
+  const { seedSecret } = req.body;
+  const validSecret = process.env.SEED_SECRET || 'SEED_RAHUL_2026_PROD';
+
+  if (seedSecret !== validSecret) {
+    return res.status(403).json({ success: false, error: 'Forbidden: invalid seed secret' });
+  }
+
+  try {
+    // Clear existing data (except profile & admin)
+    await Skill.deleteMany({});
+    await Project.deleteMany({});
+    await Education.deleteMany({});
+    await Certification.deleteMany({});
+    await Admin.deleteMany({});
+
+    // Create admin
+    await Admin.create({ username: 'admin', password: 'admin123', role: 'admin' });
+
+    // Skills
+    await Skill.create([
+      { category: 'MERN Stack', type: 'mern', highlight: true, skills: ['MongoDB', 'Express.js', 'React.js', 'Node.js', 'REST APIs', 'JWT Auth'], order: 1 },
+      { category: 'Programming Languages', type: 'programming', skills: ['Java', 'Python', 'C'], order: 2 },
+      { category: 'Web Technologies', type: 'web', skills: ['HTML5', 'CSS3', 'JavaScript', 'Responsive Design'], order: 3 },
+      { category: 'Databases', type: 'database', skills: ['MongoDB', 'MySQL', 'SQL Server', 'NoSQL'], order: 4 },
+      { category: 'Tools & Platforms', type: 'tools', skills: ['Git', 'VS Code', 'Postman', 'Eclipse', 'IBM Cloud', 'Linux'], order: 5 },
+      { category: 'Data & Visualization', type: 'visualization', skills: ['Power BI', 'Tableau', 'Python (Data Science)', 'MS Excel'], order: 6 },
+    ]);
+
+    // Projects
+    await Project.create([
+      {
+        badge: 'Healthcare • Full Stack', badgeClass: 'project-badge-1', iconClass: 'project-icon-1', icon: '🏥',
+        title: 'Smart Hospital Appointment System (HOPES)',
+        desc: 'A comprehensive full-stack hospital management platform designed to streamline patient-doctor interactions, appointment scheduling, and administrative workflows — reducing wait times and improving healthcare accessibility.',
+        features: [
+          'Patient registration, login & appointment booking with real-time slot availability',
+          'Doctor dashboard for managing schedules, patient records, and consultation history',
+          'Admin panel for hospital management, department control, and analytics',
+          'Secure authentication using JWT tokens with role-based access control (Patient / Doctor / Admin)',
+          'Email/SMS notification system for appointment confirmations and reminders',
+        ],
+        tech: ['MongoDB', 'Express.js', 'React.js', 'Node.js', 'JWT', 'REST API', 'Tailwind CSS', 'Nodemailer'],
+        github: 'https://github.com/rahul950rs', live: '', order: 1
+      },
+      {
+        badge: 'EdTech • Full Stack', badgeClass: 'project-badge-2', iconClass: 'project-icon-2', icon: '📝',
+        title: 'Online Examination Control System',
+        desc: 'A robust full-stack examination management platform built for educational institutions to conduct, monitor, and evaluate online exams with anti-cheating mechanisms and automated grading — ensuring academic integrity at scale.',
+        features: [
+          'Dynamic question bank with multi-type support: MCQ, True/False, and Subjective',
+          'Real-time exam monitoring with tab-switch detection and auto-submission on timeout',
+          'Automated result generation with detailed performance analytics and leaderboard',
+          'Role-based portals for Admins, Examiners, and Students with secure login',
+          'Randomized question order and option shuffling to prevent cheating',
+        ],
+        tech: ['MongoDB', 'Express.js', 'React.js', 'Node.js', 'Socket.io', 'JWT', 'Chart.js', 'REST API'],
+        github: 'https://github.com/rahul950rs', live: '', order: 2
+      },
+    ]);
+
+    // Education
+    await Education.create([
+      { icon: '🎓', year: '2023 – 2026 (Appearing)', degree: 'Bachelor of Computer Applications (DS & AI)', institution: 'Babu Banarasi Das University, Lucknow', order: 1 },
+      { icon: '📚', year: '2017 – 2019', degree: 'Intermediate in Science (10+2)', institution: 'Gandhi Inter College', order: 2 },
+      { icon: '🏫', year: '2017', degree: 'Matriculation (10th)', institution: 'Ibrahim Memorial High School', order: 3 },
+    ]);
+
+    // Certifications
+    await Certification.create([
+      { icon: '🐍', title: 'Python 101 for Data Science', issuer: 'IBM — Cognitive Class', order: 1 },
+      { icon: '📊', title: 'Predictive Modeling Fundamentals I', issuer: 'IBM — Cognitive Class', order: 2 },
+      { icon: '📈', title: 'Data Visualization with Python', issuer: 'IBM — Cognitive Class', order: 3 },
+      { icon: '🗄️', title: 'NoSQL and DBaaS 101', issuer: 'IBM — Cognitive Class', order: 4 },
+      { icon: '🧠', title: 'IBM Cognos Analytics', issuer: 'IBM — Cognitive Class', order: 5 },
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Production database seeded successfully! Remove this endpoint after use.',
+      counts: {
+        admin: 1,
+        skills: 6,
+        projects: 2,
+        education: 3,
+        certifications: 5,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/* =========================================================================
    AUTH ROUTES
    ========================================================================= */
 
