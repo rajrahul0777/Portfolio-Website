@@ -34,10 +34,17 @@ export default function Certifications() {
 
   if (loading) return null;
 
-  const getCertUrl = (path) => {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${SERVER_URL}${path}`;
+  const getCertUrl = (cert) => {
+    // Prefer uploaded file, then fall back to external credentialUrl
+    if (cert.filePath && cert.filePath.trim() !== '') {
+      const p = cert.filePath;
+      if (p.startsWith('http')) return p;
+      return `${SERVER_URL}${p}`;
+    }
+    if (cert.credentialUrl && cert.credentialUrl.trim() !== '') {
+      return cert.credentialUrl.trim();
+    }
+    return null;
   };
 
   return (
@@ -55,7 +62,7 @@ export default function Certifications() {
 
         <div className="certifications-grid">
           {certifications.map((cert, i) => {
-            const certUrl = getCertUrl(cert.filePath);
+            const certUrl = getCertUrl(cert);
             const CardContent = (
               <>
                 <div className="certification-icon">{cert.icon || '🏆'}</div>
