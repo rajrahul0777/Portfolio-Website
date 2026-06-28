@@ -15,7 +15,8 @@ connectDB();
 const allowedOrigins = [
   'http://localhost:5173',  // Vite dev server
   'http://localhost:4173',  // Vite preview
-  process.env.FRONTEND_URL, // Production Vercel URL (set in Render env vars)
+  'https://portfolio-frontend-fawn-nine.vercel.app', // Production Vercel URL
+  process.env.FRONTEND_URL, // Additional URL via env var (Render dashboard)
 ].filter(Boolean); // remove undefined if FRONTEND_URL not set
 
 app.use(cors({
