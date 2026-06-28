@@ -371,6 +371,10 @@ router.post('/certifications', protect, upload.single('certificate'), async (req
     if (req.file) {
       certData.filePath = `/uploads/${req.file.filename}`;
     }
+    // Store external credential URL if provided
+    if (certData.credentialUrl) {
+      certData.credentialUrl = certData.credentialUrl.trim();
+    }
     const cert = await Certification.create(certData);
     res.status(201).json({ success: true, data: cert });
   } catch (error) {
@@ -383,6 +387,10 @@ router.put('/certifications/:id', protect, upload.single('certificate'), async (
     const certData = { ...req.body };
     if (req.file) {
       certData.filePath = `/uploads/${req.file.filename}`;
+    }
+    // Store external credential URL if provided
+    if (certData.credentialUrl !== undefined) {
+      certData.credentialUrl = certData.credentialUrl.trim();
     }
     const cert = await Certification.findByIdAndUpdate(req.params.id, certData, {
       new: true,
