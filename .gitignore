@@ -25,4 +25,10 @@ dist-ssr
 
 github_credentials.json
 upload_to_github.js
+
+# Environment files - DO NOT commit actual .env files
 .env
+.env.production
+.env.local
+# .env.example files are safe to commit (they are templates)
+
