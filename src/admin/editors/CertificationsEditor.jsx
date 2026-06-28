@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL, SERVER_URL } from '../../config';
-import { HiPencil, HiTrash, HiExternalLink } from 'react-icons/hi';
+import { HiPencil, HiTrash, HiExternalLink, HiCheckCircle } from 'react-icons/hi';
 
 export default function CertificationsEditor({ token }) {
   const [certs, setCerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusMsg, setStatusMsg] = useState('');
-  const [statusType, setStatusType] = useState(''); // 'success' or 'error'
+  const [statusType, setStatusType] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Form State
@@ -17,16 +17,16 @@ export default function CertificationsEditor({ token }) {
   const [icon, setIcon] = useState('🏆');
   const [order, setOrder] = useState(0);
   const [certFile, setCertFile] = useState(null);
+  const [credentialUrl, setCredentialUrl] = useState('');
 
-  // Use a key to force-reset the file input after upload
   const [fileInputKey, setFileInputKey] = useState(Date.now());
   const statusTimerRef = useRef(null);
+  const formRef = useRef(null); // ref to scroll to form on edit
 
   useEffect(() => {
     fetchCerts();
   }, []);
 
-  // Auto-clear status message after 4 seconds
   const showStatus = (msg, type = 'success') => {
     setStatusMsg(msg);
     setStatusType(type);
@@ -34,7 +34,7 @@ export default function CertificationsEditor({ token }) {
     statusTimerRef.current = setTimeout(() => {
       setStatusMsg('');
       setStatusType('');
-    }, 4000);
+    }, 5000);
   };
 
   const fetchCerts = async () => {
@@ -58,8 +58,13 @@ export default function CertificationsEditor({ token }) {
     setIssuer(item.issuer);
     setIcon(item.icon || '🏆');
     setOrder(item.order || 0);
+    setCredentialUrl(item.credentialUrl || '');
     setCertFile(null);
-    setFileInputKey(Date.now()); // Reset file input when entering edit mode
+    setFileInputKey(Date.now());
+    // Scroll to form smoothly
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const resetForm = () => {
@@ -69,8 +74,9 @@ export default function CertificationsEditor({ token }) {
     setIssuer('');
     setIcon('🏆');
     setOrder(0);
+    setCredentialUrl('');
     setCertFile(null);
-    setFileInputKey(Date.now()); // Force file input to clear
+    setFileInputKey(Date.now());
   };
 
   const handleSubmit = async (e) => {
@@ -83,6 +89,7 @@ export default function CertificationsEditor({ token }) {
     formData.append('issuer', issuer);
     formData.append('icon', icon);
     formData.append('order', Number(order));
+    formData.append('credentialUrl', credentialUrl.trim());
     if (certFile) {
       formData.append('certificate', certFile);
     }
@@ -101,9 +108,9 @@ export default function CertificationsEditor({ token }) {
       const data = await res.json();
 
       if (data.success) {
-        showStatus(editingId ? '✅ Certification updated!' : '✅ Certification added!', 'success');
+        showStatus(editingId ? '✅ Certification updated & publicly visible!' : '✅ Certification added & now publicly visible!', 'success');
         resetForm();
-        await fetchCerts(); // Refresh list immediately
+        await fetchCerts();
       } else {
         showStatus(`❌ Error: ${data.error || 'Failed to save.'}`, 'error');
       }
@@ -128,7 +135,7 @@ export default function CertificationsEditor({ token }) {
 
       if (data.success) {
         showStatus('🗑️ Certification deleted.', 'success');
-        await fetchCerts(); // Refresh list immediately
+        await fetchCerts();
       } else {
         showStatus('❌ Delete failed.', 'error');
       }
@@ -154,14 +161,13 @@ export default function CertificationsEditor({ token }) {
           color: statusType === 'success' ? '#6ee7b7' : '#fca5a5',
           marginBottom: 20,
           fontWeight: 500,
-          transition: 'all 0.3s ease',
         }}>
           {statusMsg}
         </div>
       )}
 
       {/* Editor Form */}
-      <form onSubmit={handleSubmit} className="glass-card contact-form" style={{ marginBottom: 30 }}>
+      <form ref={formRef} onSubmit={handleSubmit} className="glass-card contact-form" style={{ marginBottom: 30 }}>
         <h4 style={{ color: 'var(--accent-primary)', marginBottom: 16 }}>
           {isEditing ? '✏️ Edit Certification' : '➕ Add Certification'}
         </h4>
@@ -207,9 +213,23 @@ export default function CertificationsEditor({ token }) {
           </div>
         </div>
 
-        {/* Upload Certificate File — key forces re-mount/reset after upload */}
+        {/* External Credential URL */}
+        <div className="form-group" style={{ marginBottom: 16 }}>
+          <label>🔗 External Credential URL (Credly / IBM / Coursera link)</label>
+          <input
+            type="url"
+            value={credentialUrl}
+            onChange={(e) => setCredentialUrl(e.target.value)}
+            placeholder="https://www.credly.com/badges/... or https://courses.cognitiveclass.ai/..."
+          />
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+            Paste the external badge/certificate URL here. Visitors will click this to view the credential.
+          </div>
+        </div>
+
+        {/* Upload Certificate File */}
         <div className="form-group" style={{ marginBottom: 20 }}>
-          <label>Upload Certificate Document / Image (PDF, JPG, PNG)</label>
+          <label>📎 Upload Certificate Image / PDF (optional — overrides URL if both provided)</label>
           <div className="file-upload-wrapper">
             <input
               key={fileInputKey}
@@ -232,7 +252,7 @@ export default function CertificationsEditor({ token }) {
             </button>
           )}
           <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? '⏳ Saving...' : isEditing ? 'Update Certification' : 'Add Certification'}
+            {saving ? '⏳ Saving...' : isEditing ? '💾 Update Certification' : '➕ Add Certification'}
           </button>
         </div>
       </form>
@@ -245,43 +265,94 @@ export default function CertificationsEditor({ token }) {
         </span>
       </h4>
 
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <HiCheckCircle style={{ color: '#10b981' }} /> = Publicly visible credential link
+        </span>
+        <span>No badge = no link set (credential not clickable on site)</span>
+      </div>
+
       <div className="admin-items-list">
         {certs.length === 0 ? (
           <div style={{ padding: 24, color: 'var(--text-muted)', textAlign: 'center' }}>
             No certifications yet. Add one above!
           </div>
         ) : (
-          certs.map((item) => (
-            <div key={item._id} className="glass-card admin-item-card">
-              <div className="admin-item-info">
-                <div className="admin-item-title">{item.icon} {item.title}</div>
-                <div className="admin-item-subtitle">
-                  {item.issuer}
-                  <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>· Sort: {item.order}</span>
-                  {item.filePath && (
-                    <span style={{ marginLeft: 12 }}>
+          certs.map((item) => {
+            const hasFile = item.filePath && item.filePath.trim() !== '';
+            const hasUrl = item.credentialUrl && item.credentialUrl.trim() !== '';
+            const publicLink = hasFile
+              ? `${SERVER_URL}${item.filePath}`
+              : hasUrl
+                ? item.credentialUrl
+                : null;
+
+            return (
+              <div key={item._id} className="glass-card admin-item-card">
+                <div className="admin-item-info">
+                  <div className="admin-item-title">{item.icon} {item.title}</div>
+                  <div className="admin-item-subtitle">
+                    {item.issuer}
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>· Sort: {item.order}</span>
+                  </div>
+
+                  {/* Credential link status */}
+                  <div style={{ marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    {hasFile && (
                       <a
                         href={`${SERVER_URL}${item.filePath}`}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ color: 'var(--accent-tertiary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          fontSize: '0.75rem', color: '#10b981',
+                          background: 'rgba(16,185,129,0.1)', padding: '2px 8px',
+                          borderRadius: 4, border: '1px solid rgba(16,185,129,0.3)',
+                          fontWeight: 600,
+                        }}
                       >
-                        View File <HiExternalLink size={12} />
+                        <HiCheckCircle /> Uploaded File — Publicly Visible <HiExternalLink size={11} />
                       </a>
-                    </span>
-                  )}
+                    )}
+                    {hasUrl && (
+                      <a
+                        href={item.credentialUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          fontSize: '0.75rem', color: 'var(--accent-tertiary)',
+                          background: 'rgba(99,102,241,0.1)', padding: '2px 8px',
+                          borderRadius: 4, border: '1px solid rgba(99,102,241,0.3)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <HiCheckCircle /> External URL — Publicly Visible <HiExternalLink size={11} />
+                      </a>
+                    )}
+                    {!publicLink && (
+                      <span style={{
+                        fontSize: '0.75rem', color: '#f59e0b',
+                        background: 'rgba(245,158,11,0.1)', padding: '2px 8px',
+                        borderRadius: 4, border: '1px solid rgba(245,158,11,0.3)',
+                      }}>
+                        ⚠️ No credential link — card not clickable on site
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="admin-item-actions">
+                  <button className="admin-icon-btn" onClick={() => handleEditClick(item)} title="Edit">
+                    <HiPencil />
+                  </button>
+                  <button className="admin-icon-btn delete" onClick={() => handleDelete(item._id)} title="Delete">
+                    <HiTrash />
+                  </button>
                 </div>
               </div>
-              <div className="admin-item-actions">
-                <button className="admin-icon-btn" onClick={() => handleEditClick(item)} title="Edit">
-                  <HiPencil />
-                </button>
-                <button className="admin-icon-btn delete" onClick={() => handleDelete(item._id)} title="Delete">
-                  <HiTrash />
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
