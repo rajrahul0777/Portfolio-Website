@@ -177,10 +177,11 @@ router.post('/profile/upload', protect, upload.fields([
 
     const updates = {};
     if (req.files.resume && req.files.resume[0]) {
-      updates.resumePath = `/uploads/${req.files.resume[0].filename}`;
+      // Cloudinary returns the full URL in .path
+      updates.resumePath = req.files.resume[0].path;
     }
     if (req.files.profileImage && req.files.profileImage[0]) {
-      updates.profileImagePath = `/uploads/${req.files.profileImage[0].filename}`;
+      updates.profileImagePath = req.files.profileImage[0].path;
     }
 
     profile = await Profile.findByIdAndUpdate(profile._id, updates, { new: true });
@@ -254,7 +255,8 @@ router.post('/projects', protect, upload.single('image'), async (req, res) => {
   try {
     const projectData = { ...req.body };
     if (req.file) {
-      projectData.imagePath = `/uploads/${req.file.filename}`;
+      // Cloudinary returns full CDN URL in req.file.path
+      projectData.imagePath = req.file.path;
     }
     // Parse arrays if sent as strings (from FormData)
     if (typeof projectData.features === 'string') {
@@ -275,7 +277,8 @@ router.put('/projects/:id', protect, upload.single('image'), async (req, res) =>
   try {
     const projectData = { ...req.body };
     if (req.file) {
-      projectData.imagePath = `/uploads/${req.file.filename}`;
+      // Cloudinary returns full CDN URL in req.file.path
+      projectData.imagePath = req.file.path;
     }
     if (typeof projectData.features === 'string') {
       projectData.features = JSON.parse(projectData.features);
@@ -369,9 +372,9 @@ router.post('/certifications', protect, upload.single('certificate'), async (req
   try {
     const certData = { ...req.body };
     if (req.file) {
-      certData.filePath = `/uploads/${req.file.filename}`;
+      // Cloudinary returns full CDN URL in req.file.path — stored directly
+      certData.filePath = req.file.path;
     }
-    // Store external credential URL if provided
     if (certData.credentialUrl) {
       certData.credentialUrl = certData.credentialUrl.trim();
     }
@@ -386,9 +389,9 @@ router.put('/certifications/:id', protect, upload.single('certificate'), async (
   try {
     const certData = { ...req.body };
     if (req.file) {
-      certData.filePath = `/uploads/${req.file.filename}`;
+      // Cloudinary returns full CDN URL in req.file.path — stored directly
+      certData.filePath = req.file.path;
     }
-    // Store external credential URL if provided
     if (certData.credentialUrl !== undefined) {
       certData.credentialUrl = certData.credentialUrl.trim();
     }
