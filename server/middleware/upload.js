@@ -1,40 +1,65 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('../config/cloudinary');
 
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Cloudinary Storage — files stored permanently on Cloudinary CDN
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    // Determine folder and resource type
+    let folder = 'portfolio';
+    let resource_type = 'image';
 
-// Multer Storage config
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
+    if (file.fieldname === 'certificate') {
+      folder = 'portfolio/certificates';
+    } else if (file.fieldname === 'resume') {
+      folder = 'portfolio/resumes';
+      resource_type = 'raw'; // PDFs are raw
+    } else if (file.fieldname === 'profileImage') {
+      folder = 'portfolio/profile';
+    } else if (file.fieldname === 'image') {
+      folder = 'portfolio/projects';
+    }
+
+    // If file is a PDF, always use raw
+    if (file.mimetype === 'application/pdf') {
+      resource_type = 'raw';
+    }
+
+    return {
+      folder,
+      resource_type,
+      // Keep original filename (sanitized)
+      public_id: `${file.fieldname}-${Date.now()}`,
+      // Auto-format and quality (only for images)
+      ...(resource_type === 'image' && {
+        format: undefined, // keep original format
+        transformation: [{ quality: 'auto' }],
+      }),
+    };
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
 });
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const filetypes = /jpeg|jpg|png|pdf|doc|docx/;
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = filetypes.test(file.mimetype);
+  const allowed = /jpeg|jpg|png|pdf|doc|docx|webp/;
+  const ext = allowed.test(file.originalname.toLowerCase().split('.').pop());
+  const mime = file.mimetype.startsWith('image/') ||
+    file.mimetype === 'application/pdf' ||
+    file.mimetype === 'application/msword' ||
+    file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-  if (mimetype && extname) {
-    return cb(null, true);
+  if (ext && mime) {
+    cb(null, true);
   } else {
     cb(new Error('Only images, PDFs, and document files are allowed!'));
   }
 };
 
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+  storage,
+  fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
 module.exports = upload;
