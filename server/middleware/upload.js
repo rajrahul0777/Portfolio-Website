@@ -1,50 +1,17 @@
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const path = require('path');
 const cloudinary = require('../config/cloudinary');
+const { Readable } = require('stream');
 
-// Cloudinary Storage — files stored permanently on Cloudinary CDN
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: async (req, file) => {
-    // Determine folder and resource type
-    let folder = 'portfolio';
-    let resource_type = 'image';
-
-    if (file.fieldname === 'certificate') {
-      folder = 'portfolio/certificates';
-    } else if (file.fieldname === 'resume') {
-      folder = 'portfolio/resumes';
-      resource_type = 'raw'; // PDFs are raw
-    } else if (file.fieldname === 'profileImage') {
-      folder = 'portfolio/profile';
-    } else if (file.fieldname === 'image') {
-      folder = 'portfolio/projects';
-    }
-
-    // If file is a PDF, always use raw
-    if (file.mimetype === 'application/pdf') {
-      resource_type = 'raw';
-    }
-
-    return {
-      folder,
-      resource_type,
-      // Keep original filename (sanitized)
-      public_id: `${file.fieldname}-${Date.now()}`,
-      // Auto-format and quality (only for images)
-      ...(resource_type === 'image' && {
-        format: undefined, // keep original format
-        transformation: [{ quality: 'auto' }],
-      }),
-    };
-  },
-});
+// Use memory storage — file stays in buffer, then we stream to Cloudinary
+const storage = multer.memoryStorage();
 
 // File filter
 const fileFilter = (req, file, cb) => {
   const allowed = /jpeg|jpg|png|pdf|doc|docx|webp/;
-  const ext = allowed.test(file.originalname.toLowerCase().split('.').pop());
-  const mime = file.mimetype.startsWith('image/') ||
+  const ext = allowed.test(path.extname(file.originalname).toLowerCase().slice(1));
+  const mime =
+    file.mimetype.startsWith('image/') ||
     file.mimetype === 'application/pdf' ||
     file.mimetype === 'application/msword' ||
     file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -62,4 +29,36 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-module.exports = upload;
+// Helper: upload buffer to Cloudinary and return secure URL
+function uploadToCloudinary(buffer, fieldname, mimetype) {
+  return new Promise((resolve, reject) => {
+    let folder = 'portfolio';
+    let resource_type = 'image';
+
+    if (fieldname === 'certificate') folder = 'portfolio/certificates';
+    else if (fieldname === 'resume') {
+      folder = 'portfolio/resumes';
+      resource_type = 'raw';
+    } else if (fieldname === 'profileImage') folder = 'portfolio/profile';
+    else if (fieldname === 'image') folder = 'portfolio/projects';
+
+    if (mimetype === 'application/pdf') resource_type = 'raw';
+
+    const public_id = `${fieldname}-${Date.now()}`;
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder, resource_type, public_id },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+
+    const readable = new Readable();
+    readable.push(buffer);
+    readable.push(null);
+    readable.pipe(uploadStream);
+  });
+}
+
+module.exports = { upload, uploadToCloudinary };
