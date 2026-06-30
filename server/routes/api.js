@@ -14,7 +14,7 @@ const ContactMessage = require('../models/ContactMessage');
 
 // Middleware
 const { protect } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { upload, uploadToCloudinary } = require('../middleware/upload');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -176,12 +176,21 @@ router.post('/profile/upload', protect, upload.fields([
     }
 
     const updates = {};
-    if (req.files.resume && req.files.resume[0]) {
-      // Cloudinary returns the full URL in .path
-      updates.resumePath = req.files.resume[0].path;
+    if (req.files && req.files.resume && req.files.resume[0]) {
+      const url = await uploadToCloudinary(
+        req.files.resume[0].buffer,
+        'resume',
+        req.files.resume[0].mimetype
+      );
+      updates.resumePath = url;
     }
-    if (req.files.profileImage && req.files.profileImage[0]) {
-      updates.profileImagePath = req.files.profileImage[0].path;
+    if (req.files && req.files.profileImage && req.files.profileImage[0]) {
+      const url = await uploadToCloudinary(
+        req.files.profileImage[0].buffer,
+        'profileImage',
+        req.files.profileImage[0].mimetype
+      );
+      updates.profileImagePath = url;
     }
 
     profile = await Profile.findByIdAndUpdate(profile._id, updates, { new: true });
@@ -255,8 +264,8 @@ router.post('/projects', protect, upload.single('image'), async (req, res) => {
   try {
     const projectData = { ...req.body };
     if (req.file) {
-      // Cloudinary returns full CDN URL in req.file.path
-      projectData.imagePath = req.file.path;
+      // Upload buffer to Cloudinary
+      projectData.imagePath = await uploadToCloudinary(req.file.buffer, 'image', req.file.mimetype);
     }
     // Parse arrays if sent as strings (from FormData)
     if (typeof projectData.features === 'string') {
@@ -277,8 +286,8 @@ router.put('/projects/:id', protect, upload.single('image'), async (req, res) =>
   try {
     const projectData = { ...req.body };
     if (req.file) {
-      // Cloudinary returns full CDN URL in req.file.path
-      projectData.imagePath = req.file.path;
+      // Upload buffer to Cloudinary
+      projectData.imagePath = await uploadToCloudinary(req.file.buffer, 'image', req.file.mimetype);
     }
     if (typeof projectData.features === 'string') {
       projectData.features = JSON.parse(projectData.features);
@@ -372,8 +381,8 @@ router.post('/certifications', protect, upload.single('certificate'), async (req
   try {
     const certData = { ...req.body };
     if (req.file) {
-      // Cloudinary returns full CDN URL in req.file.path — stored directly
-      certData.filePath = req.file.path;
+      // Upload buffer to Cloudinary and store permanent URL
+      certData.filePath = await uploadToCloudinary(req.file.buffer, 'certificate', req.file.mimetype);
     }
     if (certData.credentialUrl) {
       certData.credentialUrl = certData.credentialUrl.trim();
@@ -389,8 +398,8 @@ router.put('/certifications/:id', protect, upload.single('certificate'), async (
   try {
     const certData = { ...req.body };
     if (req.file) {
-      // Cloudinary returns full CDN URL in req.file.path — stored directly
-      certData.filePath = req.file.path;
+      // Upload buffer to Cloudinary and store permanent URL
+      certData.filePath = await uploadToCloudinary(req.file.buffer, 'certificate', req.file.mimetype);
     }
     if (certData.credentialUrl !== undefined) {
       certData.credentialUrl = certData.credentialUrl.trim();
